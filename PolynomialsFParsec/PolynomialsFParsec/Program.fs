@@ -49,12 +49,14 @@ let getVariables e =
 type UserState = unit
 type Parser<'t> = Parser<'t, UserState>
 
+let curry f = fun x -> fun y -> f(x,y)
+
 let pop : Parser<_> = pstring "("
-let pcp : Parser<_> = pstring ")"
-let padd : Parser<_> = stringReturn "+" (fun p -> fun q -> Add (p,q))
-let psubtract : Parser<_> = stringReturn "-" (fun p -> fun q -> Subtract (p,q))
-let pproduct : Parser<_> = stringReturn "*" (fun p -> fun q -> Product (p,q))
-let ppow : Parser<_> = stringReturn "^" (fun p -> fun q -> Pow (p,q))
+let pcp = pstring ")"
+let padd = stringReturn "+" (curry Add)
+let psubtract = stringReturn "-" (curry Subtract)
+let pproduct = stringReturn "*" (curry Product)
+let ppow = stringReturn "^" (curry Pow)
 
 let expression, expressionRef = createParserForwardedToRef<Expression,unit>()
 
