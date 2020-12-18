@@ -1,4 +1,4 @@
-﻿// Learn more about F# at http://fsharp.org
+﻿module PolynomialsFParsec
 
 open System
 open FParsec
@@ -6,8 +6,8 @@ open FParsec
 type Expression = 
     | Add of Expression * Expression
     | Const of double
-    | Negate of Expression
-    | Exp of Expression * Expression
+    | Negative of Expression
+    | Pow of Expression * Expression
     | Product of Expression * Expression
     | Subtract of Expression * Expression
     | Variable of char
@@ -16,8 +16,8 @@ let rec eval e (x:Map<char,double>) =
     match e with
     | Add (e1,e2) -> eval e1 x + eval e2 x
     | Const c -> c
-    | Negate e1 -> - eval e1 x
-    | Exp (b,exp) -> Math.Pow(eval b x,eval exp x)
+    | Negative e1 -> - eval e1 x
+    | Pow (b,exp) -> Math.Pow(eval b x,eval exp x)
     | Product (e1,e2) -> eval e1 x * eval e2 x
     | Subtract (e1,e2) -> eval e1 x - eval e2 x
     | Variable v -> x.[v]
@@ -29,9 +29,9 @@ let getVariables e =
             | Add (e1,e2) -> 
                 yield! impl e1
                 yield! impl e2
-            | Const _ -> [||]
-            | Negate e1 -> yield! impl e1
-            | Exp (b,exp) -> 
+            | Const _ -> yield! [||]
+            | Negative e1 -> yield! impl e1
+            | Pow (b,exp) -> 
                 yield! impl b
                 yield! impl exp
             | Product (e1,e2) ->
@@ -54,22 +54,19 @@ let pcp : Parser<_> = pstring ")"
 let padd : Parser<_> = stringReturn "+" (fun p -> fun q -> Add (p,q))
 let psubtract : Parser<_> = stringReturn "-" (fun p -> fun q -> Subtract (p,q))
 let pproduct : Parser<_> = stringReturn "*" (fun p -> fun q -> Product (p,q))
-let pexp : Parser<_> = stringReturn "^" (fun p -> fun q -> Exp (p,q))
+let ppow : Parser<_> = stringReturn "^" (fun p -> fun q -> Pow (p,q))
 
-let pvariable : Parser<_> = letter |>> Variable
-let pconst : Parser<_> = pfloat |>> Const
-let atom = pvariable <|> pconst
-let negateAtom = psubtract >>. atom |>> Negate
-let pnegate : Parser<_> = negateAtom <|> atom
-let exp = chainr1 pnegate pexp
-let multiplication = chainl1 exp pproduct
-let additionOp = psubtract <|> padd
-let addition = chainl1 multiplication additionOp 
+let expression, expressionRef = createParserForwardedToRef<Expression,unit>()
 
-let test p str =
-    match run p str with
-    | Success(result, _, _)   -> printfn "Success: %A" result
-    | Failure(errorMsg, _, _) -> printfn "Failure: %s" errorMsg
+let pvariable = letter |>> Variable
+let pconst = pfloat |>> Const
+let primary = choice [ pvariable; pconst; between pop pcp expression ]
+let unary = choice [ psubtract >>. primary |>> Negative ; primary]
+let pexpr = chainr1 unary ppow
+let pmultiplication = chainl1 pexpr pproduct
+let paddition = chainl1 pmultiplication (psubtract <|> padd) 
+
+expressionRef:= paddition
 
 let askVariableValues l = 
     let rec impl l (m:Map<char,double>) = 
@@ -85,7 +82,7 @@ let askVariableValues l =
 
 [<EntryPoint>]
 let main argv =
-    let polinomial = run addition "x^2+2*t"
+    let polinomial = run expression "x^2+2*t"
     match polinomial with
     | Failure(errorMsg,_,_) -> printfn "Failure: %s" errorMsg
     | Success(result, _, _) -> 
