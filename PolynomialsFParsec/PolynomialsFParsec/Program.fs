@@ -24,26 +24,16 @@ let rec eval e (x:Map<char,double>) =
 
 let getVariables e = 
     let rec impl e =
-        seq {
             match e with
-            | Add (e1,e2) -> 
-                yield! impl e1
-                yield! impl e2
-            | Const _ -> yield! [||]
-            | Negative e1 -> yield! impl e1
-            | Pow (b,exp) -> 
-                yield! impl b
-                yield! impl exp
-            | Product (e1,e2) ->
-                yield! impl e1
-                yield! impl e2
-            | Subtract (e1,e2) ->
-                yield! impl e1
-                yield! impl e2
-            | Variable v -> yield v
-        }
+            | Add (e1,e2) -> impl e1 + impl e2
+            | Const _ -> set []
+            | Negative e1 -> impl e1
+            | Pow (b,exp) -> impl b + impl exp
+            | Product (e1,e2) -> impl e1 + impl e2
+            | Subtract (e1,e2) -> impl e1 + impl e2
+            | Variable v -> set [v]
 
-    (impl e) |> Seq.distinct |> Seq.toList
+    (impl e) |> Seq.toList
 
 // Avoid F#'s value restriction
 type UserState = unit
@@ -62,9 +52,9 @@ let expression, expressionRef = createParserForwardedToRef<Expression,unit>()
 
 let pvariable = letter |>> Variable
 let pconst = pfloat |>> Const
-let primary = choice [ pvariable; pconst; between pop pcp expression ]
-let unary = choice [ psubtract >>. primary |>> Negative ; primary]
-let pexpr = chainr1 unary ppow
+let pprimary = choice [ pvariable; pconst; between pop pcp expression ]
+let punary = choice [ psubtract >>. pprimary |>> Negative ; pprimary]
+let pexpr = chainr1 punary ppow
 let pmultiplication = chainl1 pexpr pproduct
 let paddition = chainl1 pmultiplication (psubtract <|> padd) 
 
