@@ -74,11 +74,12 @@ let askVariableValues l =
 
 [<EntryPoint>]
 let main argv =
-    let polinomial = run expression "x^2+2*t"
+    printfn "Please enter a polynomial expression"
+    let source = Console.ReadLine()
+    let polinomial = run expression source
     match polinomial with
     | Failure(errorMsg,_,_) -> printfn "Failure: %s" errorMsg
     | Success(result, _, _) -> 
-        printfn "Success: %A" result
         let variables = getVariables result
         let m = askVariableValues variables
         printfn "%f" (eval result m)
