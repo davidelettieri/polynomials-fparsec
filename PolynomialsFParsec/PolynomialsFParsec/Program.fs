@@ -4,13 +4,13 @@ open System
 open FParsec
 
 type Expression = 
-    | Add of Expression * Expression
-    | Const of double
-    | Negative of Expression
-    | Pow of Expression * Expression
-    | Product of Expression * Expression
-    | Subtract of Expression * Expression
-    | Variable of char
+    | Add of Expression * Expression // x+y or z+1
+    | Const of double // 1 or 10.5
+    | Negative of Expression // -x
+    | Pow of Expression * Expression // x^2
+    | Product of Expression * Expression // x*y
+    | Subtract of Expression * Expression // x-1 or x-y
+    | Variable of char // x or y
 
 let rec eval e (x:Map<char,double>) = 
     match e with
@@ -34,6 +34,19 @@ let getVariables e =
             | Variable v -> set [v]
 
     (impl e) |> Seq.toList
+
+    
+let askVariableValues l = 
+    let rec impl l (m:Map<char,double>) = 
+        match l with
+        | [] -> m
+        | h::t -> 
+            printfn "Please enter value for %c" h
+            let value = Console.ReadLine()
+            let m' = m.Add(h,double value)
+            impl t m'
+
+    impl l (Map<_,_>([||]))
 
 // Avoid F#'s value restriction
 type UserState = unit
@@ -60,17 +73,6 @@ let paddition = chainl1 pmultiplication (psubtract <|> padd)
 
 expressionRef:= paddition
 
-let askVariableValues l = 
-    let rec impl l (m:Map<char,double>) = 
-        match l with
-        | [] -> m
-        | h::t -> 
-            printfn "Please enter value for %c" h
-            let value = Console.ReadLine()
-            let m' = m.Add(h,double value)
-            impl t m'
-
-    impl l (Map<_,_>([||]))
 
 [<EntryPoint>]
 let main argv =
